@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Gösterge Paneli — OpenProcess</title><link rel="stylesheet" href="/css/style.css"></head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+      <div class="page-header">
+        <div>
+          <button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+          <div class="page-title">Gösterge Paneli</div>
+          <div class="page-subtitle" id="dateDisplay"></div>
+        </div>
+        <a href="/jobs" class="btn btn-primary">+ Yeni İş Emri</a>
+      </div>
+      <div class="page-body">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">Bekleyen Araç</div><div class="stat-value" id="statWaiting">-</div></div>
+          <div class="stat-card"><div class="stat-label">İşlemde</div><div class="stat-value" id="statProgress">-</div></div>
+          <div class="stat-card"><div class="stat-label">Hazır (Teslim Bekliyor)</div><div class="stat-value" id="statCompleted">-</div></div>
+          <div class="stat-card"><div class="stat-label">Bugünkü Ciro</div><div class="stat-value text-success" id="statRevenue">-</div></div>
+          <div class="stat-card"><div class="stat-label">Bugünkü İş Sayısı</div><div class="stat-value" id="statTodayJobs">-</div></div>
+          <div class="stat-card"><div class="stat-label">Haftalık Ciro</div><div class="stat-value text-success" id="statWeekRevenue">-</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Aktif İş Emirleri</div><button class="btn btn-ghost btn-sm" onclick="loadActiveJobs()">↻ Yenile</button></div>
+          <div class="jobs-board">
+            <div class="jobs-column"><div class="jobs-column-header"><span class="col-dot" style="background:var(--warning)"></span><span class="col-title">Bekliyor</span><span class="col-count" id="countWaiting">0</span></div><div id="colWaiting"></div></div>
+            <div class="jobs-column"><div class="jobs-column-header"><span class="col-dot" style="background:var(--info)"></span><span class="col-title">İşlemde</span><span class="col-count" id="countProgress">0</span></div><div id="colProgress"></div></div>
+            <div class="jobs-column"><div class="jobs-column-header"><span class="col-dot" style="background:var(--success)"></span><span class="col-title">Hazır</span><span class="col-count" id="countCompleted">0</span></div><div id="colCompleted"></div></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="/js/app.js"></script>
+  <script>
+    let currentUser;
+    window.addEventListener("load",async()=>{
+      currentUser=await checkAuth();if(!currentUser)return;
+      document.getElementById("sidebar").innerHTML=renderSidebar(currentUser);initSidebar("dashboard");
+      document.getElementById("dateDisplay").textContent=new Date().toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+      loadStats();loadActiveJobs();setInterval(()=>{loadStats();loadActiveJobs()},30000);
+    });
+    async function loadStats(){try{const s=await api("/api/stats/dashboard");document.getElementById("statWaiting").textContent=s.active_jobs.waiting;document.getElementById("statProgress").textContent=s.active_jobs.in_progress;document.getElementById("statCompleted").textContent=s.active_jobs.completed;document.getElementById("statRevenue").textContent=formatMoney(s.today_revenue);document.getElementById("statTodayJobs").textContent=s.today_jobs;document.getElementById("statWeekRevenue").textContent=formatMoney(s.week_revenue)}catch(e){console.error(e)}}
+    async function loadActiveJobs(){try{const jobs=await api("/api/jobs/active");const w=jobs.filter(j=>j.status==="waiting"),p=jobs.filter(j=>j.status==="in_progress"),c=jobs.filter(j=>j.status==="completed");document.getElementById("countWaiting").textContent=w.length;document.getElementById("countProgress").textContent=p.length;document.getElementById("countCompleted").textContent=c.length;document.getElementById("colWaiting").innerHTML=w.map(renderJobCard).join("")||'<div class="empty-state"><p>Bekleyen araç yok</p></div>';document.getElementById("colProgress").innerHTML=p.map(renderJobCard).join("")||'<div class="empty-state"><p>İşlemde araç yok</p></div>';document.getElementById("colCompleted").innerHTML=c.map(renderJobCard).join("")||'<div class="empty-state"><p>Hazır araç yok</p></div>'}catch(e){console.error(e)}}
+    function renderJobCard(j){const svcs=(j.services||[]).map(s=>`<span class="service-tag">${escapeHtml(s.service_name)}</span>`).join("");let act="";if(j.status==="waiting")act=`<button class="btn btn-primary btn-sm" onclick="updateJobStatus(${j.id},'in_progress')">İşleme Al</button>`;else if(j.status==="in_progress")act=`<button class="btn btn-success btn-sm" onclick="updateJobStatus(${j.id},'completed')">Tamamla</button>`;else if(j.status==="completed")act=`<button class="btn btn-warning btn-sm" onclick="sendSMS(${j.id},'${j.customer_phone}','ready')">SMS</button><button class="btn btn-success btn-sm" onclick="payAndDeliver(${j.id})">Teslim</button>`;return`<div class="job-card"><div class="job-card-plate">${escapeHtml(j.plate)}</div><div class="job-card-customer">${escapeHtml(j.customer_name)} · ${escapeHtml(j.customer_phone)}</div><div class="job-card-services">${svcs}</div><div class="job-card-footer"><span class="job-card-amount">${formatMoney(j.total_amount)}</span><span class="job-card-time">${timeAgo(j.created_at)}</span></div><div class="job-actions">${act}</div></div>`}
+    async function updateJobStatus(id,s){try{await api(`/api/jobs/${id}/status`,{method:"PATCH",body:{status:s}});showToast(statusText(s)+" durumuna güncellendi","success");loadActiveJobs();loadStats()}catch(e){showToast(e.message,"error")}}
+    async function sendSMS(id,ph,t){try{await api("/api/sms/send",{method:"POST",body:{job_id:id,phone:ph,sms_type:t}});showToast("SMS gönderildi","success")}catch(e){showToast(e.message,"error")}}
+    async function payAndDeliver(id){const m=prompt("Ödeme: cash / card / transfer","cash");if(!m||!["cash","card","transfer","mixed"].includes(m)){showToast("Geçersiz ödeme","error");return}try{await api(`/api/jobs/${id}/pay`,{method:"PATCH",body:{payment_method:m}});showToast("Teslim edildi","success");loadActiveJobs();loadStats()}catch(e){showToast(e.message,"error")}}
+  </script>
+</body>
+</html>

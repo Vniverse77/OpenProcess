@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>İş Emirleri — OpenProcess</title><link rel="stylesheet" href="/css/style.css"></head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+      <div class="page-header">
+        <div><button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button><div class="page-title">İş Emirleri</div><div class="page-subtitle">Araç kabul, işlem takibi ve teslim</div></div>
+        <button class="btn btn-primary" onclick="openNewJob()">+ Yeni İş Emri</button>
+      </div>
+      <div class="page-body">
+        <div class="flex gap-8 mb-24">
+          <select class="form-select" id="filterStatus" onchange="loadJobs()" style="width:180px"><option value="">Tüm Durumlar</option><option value="waiting">Bekliyor</option><option value="in_progress">İşlemde</option><option value="completed">Hazır</option><option value="delivered">Teslim Edildi</option><option value="cancelled">İptal</option></select>
+          <input type="date" class="form-input" id="filterDate" onchange="loadJobs()" style="width:180px">
+        </div>
+        <div class="table-wrapper"><table><thead><tr><th>#</th><th>Plaka</th><th>Müşteri</th><th>Hizmetler</th><th>Tutar</th><th>Durum</th><th>Tarih</th><th>İşlemler</th></tr></thead><tbody id="jobsTable"></tbody></table></div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="newJobModal"><div class="modal" style="max-width:640px">
+    <div class="modal-header"><div class="modal-title">Yeni İş Emri</div><button class="modal-close" onclick="closeModal('newJobModal')">✕</button></div>
+    <div class="modal-body">
+      <div id="step1">
+        <div class="form-group"><label class="form-label">Plaka Girin</label><div class="plate-search-box"><span class="plate-icon">🚗</span><input type="text" class="form-input form-input-lg" id="plateInput" placeholder="34 ABC 123" maxlength="15" oninput="this.value=this.value.toUpperCase()"></div></div>
+        <button class="btn btn-primary btn-lg" style="width:100%" onclick="searchPlate()">Plaka Sorgula</button>
+        <div id="plateResult" style="display:none"></div>
+      </div>
+      <div id="step2" style="display:none">
+        <h3 style="margin-bottom:16px;font-size:15px">Yeni Müşteri & Araç Kaydı</h3>
+        <div class="grid-2"><div class="form-group"><label class="form-label">Müşteri Adı *</label><input type="text" class="form-input" id="newCustName"></div><div class="form-group"><label class="form-label">Telefon *</label><input type="text" class="form-input" id="newCustPhone" placeholder="05XX XXX XX XX"></div></div>
+        <div class="grid-2"><div class="form-group"><label class="form-label">Marka</label><input type="text" class="form-input" id="newVehBrand"></div><div class="form-group"><label class="form-label">Model</label><input type="text" class="form-input" id="newVehModel"></div></div>
+        <div class="grid-2"><div class="form-group"><label class="form-label">Renk</label><input type="text" class="form-input" id="newVehColor"></div><div class="form-group"><label class="form-label">Yıl</label><input type="number" class="form-input" id="newVehYear"></div></div>
+        <button class="btn btn-success btn-lg" style="width:100%" onclick="createCustomerAndVehicle()">Kaydet & Devam Et</button>
+      </div>
+      <div id="step3" style="display:none">
+        <div id="selectedVehicleInfo" class="plate-result found mb-16"></div>
+        <div class="form-group"><label class="form-label">Hizmet Seçin</label><div class="service-checkbox-list" id="serviceList"></div></div>
+        <div class="flex-between mt-16 mb-16" style="padding:12px 16px;background:var(--bg-input);border-radius:var(--radius-sm)"><span style="font-size:14px;font-weight:600">Toplam:</span><span class="font-mono fw-700 text-success" style="font-size:20px" id="totalAmount">₺0</span></div>
+        <div class="form-group"><label class="form-label">Not (opsiyonel)</label><textarea class="form-textarea" id="jobNotes" placeholder="Özel talimatlar, hasar notları..."></textarea></div>
+        <button class="btn btn-success btn-lg" style="width:100%" onclick="createJob()">İş Emri Oluştur</button>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="modal-overlay" id="payModal"><div class="modal" style="max-width:400px">
+    <div class="modal-header"><div class="modal-title">Ödeme Al & Teslim Et</div><button class="modal-close" onclick="closeModal('payModal')">✕</button></div>
+    <div class="modal-body">
+      <div id="payJobInfo" class="mb-16"></div>
+      <div class="form-group"><label class="form-label">Ödeme Yöntemi</label><select class="form-select" id="payMethod"><option value="cash">Nakit</option><option value="card">Kredi Kartı</option><option value="transfer">Havale/EFT</option><option value="mixed">Karışık</option></select></div>
+      <button class="btn btn-success btn-lg" style="width:100%" onclick="confirmPay()">Ödemeyi Onayla</button>
+    </div>
+  </div></div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    let currentUser,selectedVehicle=null,selectedCustomerId=null,allServices=[],payingJobId=null;
+    window.addEventListener("load",async()=>{currentUser=await checkAuth();if(!currentUser)return;document.getElementById("sidebar").innerHTML=renderSidebar(currentUser);initSidebar("jobs");document.getElementById("filterDate").value=new Date().toISOString().split("T")[0];loadJobs();loadServices()});
+
+    async function loadJobs(){const s=document.getElementById("filterStatus").value,d=document.getElementById("filterDate").value;let url="/api/jobs?";if(s)url+=`status=${s}&`;if(d)url+=`date=${d}`;try{const jobs=await api(url);const tb=document.getElementById("jobsTable");if(!jobs.length){tb.innerHTML='<tr><td colspan="8"><div class="empty-state"><p>İş emri bulunamadı</p></div></td></tr>';return}tb.innerHTML=jobs.map(j=>{const svcs=(j.services||[]).map(s=>escapeHtml(s.service_name)).join(", ");let act="";if(j.status==="waiting")act=`<button class="btn btn-primary btn-sm" onclick="updateStatus(${j.id},'in_progress')">İşleme Al</button>`;else if(j.status==="in_progress")act=`<button class="btn btn-success btn-sm" onclick="updateStatus(${j.id},'completed')">Tamamla</button>`;else if(j.status==="completed")act=`<button class="btn btn-warning btn-sm" onclick="sendReadySMS(${j.id},'${j.customer_phone}')">SMS</button><button class="btn btn-success btn-sm" onclick="openPayModal(${j.id},'${escapeHtml(j.plate)}',${j.total_amount})">Teslim</button>`;return`<tr><td class="text-muted">#${j.id}</td><td><strong class="font-mono">${escapeHtml(j.plate)}</strong><br><small class="text-muted">${escapeHtml(j.brand||"")} ${escapeHtml(j.model||"")}</small></td><td>${escapeHtml(j.customer_name)}<br><small class="text-muted">${escapeHtml(j.customer_phone)}</small></td><td><small>${svcs||"-"}</small></td><td class="font-mono fw-700">${formatMoney(j.total_amount)}</td><td>${statusBadge(j.status)}</td><td><small>${formatDateTime(j.created_at)}</small></td><td><div class="flex gap-8">${act}</div></td></tr>`}).join("")}catch(e){showToast(e.message,"error")}}
+
+    async function loadServices(){try{allServices=await api("/api/services")}catch(e){}}
+
+    function openNewJob(){resetJobForm();openModal("newJobModal")}
+    async function searchPlate(){const p=document.getElementById("plateInput").value.trim();if(!p||p.length<5){showToast("Geçerli plaka girin","error");return}try{const d=await api(`/api/vehicles/search/${encodeURIComponent(p)}`);const r=document.getElementById("plateResult");r.style.display="block";if(d.found){selectedVehicle=d.vehicle;selectedCustomerId=d.vehicle.customer_id;r.className="plate-result found";r.innerHTML=`<strong>Müşteri bulundu!</strong><div class="mt-8"><strong>${escapeHtml(d.vehicle.customer_name)}</strong> — ${escapeHtml(d.vehicle.customer_phone)}</div><div class="text-muted mt-8">${escapeHtml(d.vehicle.brand||"")} ${escapeHtml(d.vehicle.model||"")} ${escapeHtml(d.vehicle.color||"")}</div><button class="btn btn-primary mt-16" onclick="goToStep3()">Devam Et →</button>`}else{r.className="plate-result not-found";r.innerHTML=`<strong>Bu plaka kayıtlı değil</strong><div class="text-muted mt-8">Yeni müşteri ve araç kaydı oluşturun</div><button class="btn btn-warning mt-16" onclick="goToStep2()">Yeni Kayıt →</button>`}}catch(e){showToast(e.message,"error")}}
+
+    function goToStep2(){document.getElementById("step1").style.display="none";document.getElementById("step2").style.display="block"}
+    async function createCustomerAndVehicle(){const n=document.getElementById("newCustName").value.trim(),ph=document.getElementById("newCustPhone").value.trim(),br=document.getElementById("newVehBrand").value.trim(),mo=document.getElementById("newVehModel").value.trim(),co=document.getElementById("newVehColor").value.trim(),yr=document.getElementById("newVehYear").value,pl=document.getElementById("plateInput").value.trim().toUpperCase();if(!n||!ph){showToast("İsim ve telefon gerekli","error");return}try{const cust=await api("/api/customers",{method:"POST",body:{name:n,phone:ph}});const veh=await api("/api/vehicles",{method:"POST",body:{customer_id:cust.id,plate:pl,brand:br||null,model:mo||null,color:co||null,year:yr?parseInt(yr):null}});selectedVehicle={...veh,customer_name:n,customer_phone:ph};selectedCustomerId=cust.id;showToast("Kayıt oluşturuldu","success");goToStep3()}catch(e){showToast(e.message,"error")}}
+
+    function goToStep3(){document.getElementById("step1").style.display="none";document.getElementById("step2").style.display="none";document.getElementById("step3").style.display="block";document.getElementById("selectedVehicleInfo").innerHTML=`<div class="flex-between"><div><strong class="font-mono" style="font-size:18px">${escapeHtml(selectedVehicle.plate)}</strong><span class="text-muted" style="margin-left:8px">${escapeHtml(selectedVehicle.brand||"")} ${escapeHtml(selectedVehicle.model||"")}</span></div><div class="text-muted">${escapeHtml(selectedVehicle.customer_name)}</div></div>`;let html="";allServices.forEach(s=>{html+=`<label class="service-checkbox-item" onclick="updateTotal()"><input type="checkbox" name="services" value="${s.id}" data-price="${s.price}"><span class="svc-name">${escapeHtml(s.name)}</span><span class="svc-price">${formatMoney(s.price)}</span></label>`});document.getElementById("serviceList").innerHTML=html}
+
+    function updateTotal(){setTimeout(()=>{let t=0;document.querySelectorAll('input[name="services"]:checked').forEach(cb=>{t+=parseFloat(cb.dataset.price);cb.closest(".service-checkbox-item").classList.add("selected")});document.querySelectorAll('input[name="services"]:not(:checked)').forEach(cb=>cb.closest(".service-checkbox-item").classList.remove("selected"));document.getElementById("totalAmount").textContent=formatMoney(t)},10)}
+
+    async function createJob(){const ids=Array.from(document.querySelectorAll('input[name="services"]:checked')).map(cb=>parseInt(cb.value));const notes=document.getElementById("jobNotes").value.trim();if(!ids.length){showToast("En az bir hizmet seçin","error");return}try{await api("/api/jobs",{method:"POST",body:{vehicle_id:selectedVehicle.id,customer_id:selectedCustomerId,service_ids:ids,notes:notes||null}});await api("/api/sms/send",{method:"POST",body:{phone:selectedVehicle.customer_phone,sms_type:"welcome"}});showToast("İş emri oluşturuldu","success");closeModal("newJobModal");loadJobs()}catch(e){showToast(e.message,"error")}}
+
+    function resetJobForm(){selectedVehicle=null;selectedCustomerId=null;document.getElementById("step1").style.display="block";document.getElementById("step2").style.display="none";document.getElementById("step3").style.display="none";document.getElementById("plateInput").value="";document.getElementById("plateResult").style.display="none"}
+
+    async function updateStatus(id,s){try{await api(`/api/jobs/${id}/status`,{method:"PATCH",body:{status:s}});showToast(statusText(s),"success");loadJobs()}catch(e){showToast(e.message,"error")}}
+    async function sendReadySMS(id,ph){try{await api("/api/sms/send",{method:"POST",body:{job_id:id,phone:ph,sms_type:"ready"}});showToast("SMS gönderildi","success")}catch(e){showToast(e.message,"error")}}
+    function openPayModal(id,pl,am){payingJobId=id;document.getElementById("payJobInfo").innerHTML=`<div class="font-mono fw-700" style="font-size:18px">${pl}</div><div class="text-success font-mono fw-700 mt-8" style="font-size:24px">${formatMoney(am)}</div>`;openModal("payModal")}
+    async function confirmPay(){try{await api(`/api/jobs/${payingJobId}/pay`,{method:"PATCH",body:{payment_method:document.getElementById("payMethod").value}});showToast("Teslim edildi","success");closeModal("payModal");loadJobs()}catch(e){showToast(e.message,"error")}}
+  </script>
+</body>
+</html>

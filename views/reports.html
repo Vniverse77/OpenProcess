@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Raporlar — OpenProcess</title><link rel="stylesheet" href="/css/style.css"></head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+      <div class="page-header"><div><button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button><div class="page-title">Raporlar</div></div></div>
+      <div class="page-body">
+        <div class="stats-grid mb-24">
+          <div class="stat-card"><div class="stat-label">Bugünkü Ciro</div><div class="stat-value text-success" id="rptToday">-</div></div>
+          <div class="stat-card"><div class="stat-label">Haftalık Ciro</div><div class="stat-value text-success" id="rptWeek">-</div></div>
+          <div class="stat-card"><div class="stat-label">Toplam Müşteri</div><div class="stat-value" id="rptCust">-</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card"><div class="card-header"><div class="card-title">Günlük Gelir (Son 30 Gün)</div></div><div class="table-wrapper" style="max-height:400px;overflow-y:auto"><table><thead><tr><th>Tarih</th><th>İş</th><th>Nakit</th><th>Kart</th><th>Toplam</th></tr></thead><tbody id="dailyTable"></tbody></table></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">Popüler Hizmetler (Son 30 Gün)</div></div><div id="popularDiv"></div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="/js/app.js"></script>
+  <script>
+    window.addEventListener("load",async()=>{const u=await checkAuth();if(!u)return;document.getElementById("sidebar").innerHTML=renderSidebar(u);initSidebar("reports");
+      try{const s=await api("/api/stats/dashboard");document.getElementById("rptToday").textContent=formatMoney(s.today_revenue);document.getElementById("rptWeek").textContent=formatMoney(s.week_revenue);document.getElementById("rptCust").textContent=s.total_customers}catch(e){}
+      try{const d=await api("/api/stats/revenue?period=daily");const tb=document.getElementById("dailyTable");if(!d.length)tb.innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Henüz veri yok</p></div></td></tr>';else tb.innerHTML=d.map(r=>`<tr><td>${formatDate(r.period)}</td><td class="font-mono">${r.job_count}</td><td class="font-mono">${formatMoney(r.cash_total)}</td><td class="font-mono">${formatMoney(r.card_total)}</td><td class="font-mono fw-700 text-success">${formatMoney(r.total)}</td></tr>`).join("")}catch(e){}
+      try{const p=await api("/api/stats/popular-services");const div=document.getElementById("popularDiv");if(!p.length)div.innerHTML='<div class="empty-state"><p>Henüz veri yok</p></div>';else{const mx=Math.max(...p.map(x=>parseInt(x.count)));div.innerHTML=p.map(x=>{const pct=(parseInt(x.count)/mx)*100;return`<div style="padding:12px 16px;border-bottom:1px solid var(--border)"><div class="flex-between mb-8"><span style="font-size:13px;font-weight:600">${escapeHtml(x.service_name)}</span><span class="font-mono text-muted" style="font-size:12px">${x.count} kez</span></div><div style="background:var(--bg-input);border-radius:4px;height:6px;overflow:hidden"><div style="background:var(--accent);width:${pct}%;height:100%;border-radius:4px"></div></div><div class="text-right mt-8"><span class="font-mono text-success" style="font-size:12px">${formatMoney(x.total_revenue)}</span></div></div>`}).join("")}}catch(e){}
+    });
+  </script>
+</body>
+</html>
