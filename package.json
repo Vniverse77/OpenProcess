@@ -1,0 +1,21 @@
+{
+  "name": "openprocess",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Open source oto kuaför & detailing yönetim sistemi",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "db:init": "node db-init.mjs"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "pg": "^8.13.0",
+    "express-session": "^1.18.0",
+    "connect-pg-simple": "^10.0.0",
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5"
+  },
+  "license": "MIT"
+}

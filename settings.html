@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="tr">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Ayarlar — OpenProcess</title>
+        <link rel="stylesheet" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="app-layout">
+            <aside class="sidebar" id="sidebar"></aside>
+            <main class="main-content">
+                <div class="page-header">
+                    <div>
+                        <button
+                            class="mobile-menu-btn"
+                            onclick="
+                                document
+                                    .getElementById('sidebar')
+                                    .classList.toggle('open')
+                            "
+                        >
+                            ☰
+                        </button>
+                        <div class="page-title">Ayarlar</div>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div class="grid-2">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Hizmetler</div>
+                                <button
+                                    class="btn btn-primary btn-sm"
+                                    onclick="openModal('newSvcModal')"
+                                >
+                                    + Yeni
+                                </button>
+                            </div>
+                            <div
+                                class="table-wrapper"
+                                style="max-height: 500px; overflow-y: auto"
+                            >
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Hizmet</th>
+                                            <th>Kategori</th>
+                                            <th>Fiyat</th>
+                                            <th>Süre</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="svcTable"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Personel</div>
+                                <button
+                                    class="btn btn-primary btn-sm"
+                                    onclick="openModal('newUserModal')"
+                                >
+                                    + Yeni
+                                </button>
+                            </div>
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>İsim</th>
+                                            <th>Kullanıcı</th>
+                                            <th>Rol</th>
+                                            <th>Durum</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usersTable"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        <div class="modal-overlay" id="newSvcModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <div class="modal-title">Yeni Hizmet</div>
+                    <button
+                        class="modal-close"
+                        onclick="closeModal('newSvcModal')"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Hizmet Adı *</label
+                        ><input type="text" class="form-input" id="nsName" />
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Kategori</label
+                            ><select class="form-select" id="nsCat">
+                                <option value="yikama">Yıkama</option>
+                                <option value="detailing">Detailing</option>
+                                <option value="ic_temizlik">İç Temizlik</option>
+                                <option value="aksesuar">Aksesuar</option>
+                                <option value="genel">Genel</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Fiyat (₺) *</label
+                            ><input
+                                type="number"
+                                class="form-input"
+                                id="nsPrice"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Süre (dk)</label
+                        ><input
+                            type="number"
+                            class="form-input"
+                            id="nsDur"
+                            value="60"
+                        />
+                    </div>
+                    <button
+                        class="btn btn-success btn-lg"
+                        style="width: 100%"
+                        onclick="addSvc()"
+                    >
+                        Kaydet
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-overlay" id="newUserModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <div class="modal-title">Yeni Personel</div>
+                    <button
+                        class="modal-close"
+                        onclick="closeModal('newUserModal')"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Ad Soyad *</label
+                        ><input type="text" class="form-input" id="nuName" />
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Kullanıcı Adı *</label
+                            ><input
+                                type="text"
+                                class="form-input"
+                                id="nuUser"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Şifre *</label
+                            ><input
+                                type="password"
+                                class="form-input"
+                                id="nuPass"
+                            />
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Rol</label
+                            ><select class="form-select" id="nuRole">
+                                <option value="staff">Personel</option>
+                                <option value="admin">Yönetici</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Telefon</label
+                            ><input
+                                type="text"
+                                class="form-input"
+                                id="nuPhone"
+                            />
+                        </div>
+                    </div>
+                    <button
+                        class="btn btn-success btn-lg"
+                        style="width: 100%"
+                        onclick="addUser()"
+                    >
+                        Kaydet
+                    </button>
+                </div>
+            </div>
+        </div>
+        <script src="/js/app.js"></script>
+        <script>
+            let currentUser;
+            window.addEventListener("load", async () => {
+                currentUser = await checkAuth();
+                if (!currentUser) return;
+                document.getElementById("sidebar").innerHTML =
+                    renderSidebar(currentUser);
+                initSidebar("settings");
+                loadData();
+            });
+            async function loadData() {
+                try {
+                    const s = await api("/api/services");
+                    document.getElementById("svcTable").innerHTML = s
+                        .map(
+                            (x) =>
+                                `<tr><td><strong>${escapeHtml(x.name)}</strong></td><td>${categoryLabel(x.category)}</td><td class="font-mono fw-700">${formatMoney(x.price)}</td><td class="text-muted">${x.duration_minutes} dk</td></tr>`,
+                        )
+                        .join("");
+                } catch (e) {}
+                if (currentUser.role === "admin") {
+                    try {
+                        const u = await api("/api/users");
+                        document.getElementById("usersTable").innerHTML = u
+                            .map(
+                                (x) =>
+                                    `<tr><td><strong>${escapeHtml(x.name)}</strong></td><td class="font-mono">${escapeHtml(x.username)}</td><td>${x.role === "admin" ? '<span class="badge badge-in-progress">Yönetici</span>' : '<span class="badge badge-delivered">Personel</span>'}</td><td>${x.active ? '<span class="text-success">Aktif</span>' : '<span class="text-muted">Pasif</span>'}</td></tr>`,
+                            )
+                            .join("");
+                    } catch (e) {}
+                }
+            }
+            async function addSvc() {
+                const n = document.getElementById("nsName").value.trim(),
+                    c = document.getElementById("nsCat").value,
+                    p = document.getElementById("nsPrice").value,
+                    d = document.getElementById("nsDur").value;
+                if (!n || !p) {
+                    showToast("İsim ve fiyat gerekli", "error");
+                    return;
+                }
+                try {
+                    await api("/api/services", {
+                        method: "POST",
+                        body: {
+                            name: n,
+                            category: c,
+                            price: parseFloat(p),
+                            duration_minutes: parseInt(d) || 30,
+                        },
+                    });
+                    showToast("Eklendi", "success");
+                    closeModal("newSvcModal");
+                    document.getElementById("nsName").value = "";
+                    document.getElementById("nsPrice").value = "";
+                    loadData();
+                } catch (e) {
+                    showToast(e.message, "error");
+                }
+            }
+            async function addUser() {
+                const n = document.getElementById("nuName").value.trim(),
+                    u = document.getElementById("nuUser").value.trim(),
+                    p = document.getElementById("nuPass").value,
+                    r = document.getElementById("nuRole").value,
+                    ph = document.getElementById("nuPhone").value.trim();
+                if (!n || !u || !p) {
+                    showToast("İsim, kullanıcı adı ve şifre gerekli", "error");
+                    return;
+                }
+                try {
+                    await api("/api/users", {
+                        method: "POST",
+                        body: {
+                            name: n,
+                            username: u,
+                            password: p,
+                            role: r,
+                            phone: ph,
+                        },
+                    });
+                    showToast("Eklendi", "success");
+                    closeModal("newUserModal");
+                    loadData();
+                } catch (e) {
+                    showToast(e.message, "error");
+                }
+            }
+        </script>
+    </body>
+</html>

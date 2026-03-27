@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="tr">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Giriş — OpenProcess</title>
+        <link rel="stylesheet" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="login-page">
+            <div class="login-card">
+                <div class="login-logo">
+                    <div class="logo-icon">🚗</div>
+                    <h1>OpenProcess</h1>
+                    <p>Oto Kuaför Yönetim Sistemi</p>
+                </div>
+                <div class="login-error" id="loginError"></div>
+                <div class="form-group">
+                    <label class="form-label">Kullanıcı Adı</label
+                    ><input
+                        type="text"
+                        class="form-input"
+                        id="username"
+                        placeholder="admin"
+                        autofocus
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Şifre</label
+                    ><input
+                        type="password"
+                        class="form-input"
+                        id="password"
+                        placeholder="••••••"
+                    />
+                </div>
+                <button
+                    class="btn btn-primary btn-lg"
+                    style="width: 100%; margin-top: 8px"
+                    onclick="doLogin()"
+                >
+                    Giriş Yap
+                </button>
+            </div>
+        </div>
+        <script>
+            fetch("/api/auth/me")
+                .then((r) => r.json())
+                .then((d) => {
+                    if (d.user) window.location.href = "/dashboard";
+                })
+                .catch(() => {});
+            document
+                .getElementById("password")
+                .addEventListener("keydown", (e) => {
+                    if (e.key === "Enter") doLogin();
+                });
+            document
+                .getElementById("username")
+                .addEventListener("keydown", (e) => {
+                    if (e.key === "Enter")
+                        document.getElementById("password").focus();
+                });
+            async function doLogin() {
+                const u = document.getElementById("username").value.trim(),
+                    p = document.getElementById("password").value,
+                    err = document.getElementById("loginError");
+                if (!u || !p) {
+                    err.textContent = "Kullanıcı adı ve şifre gerekli";
+                    err.style.display = "block";
+                    return;
+                }
+                try {
+                    const r = await fetch("/api/auth/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ username: u, password: p }),
+                    });
+                    const d = await r.json();
+                    if (!r.ok) {
+                        err.textContent = d.error;
+                        err.style.display = "block";
+                        return;
+                    }
+                    window.location.href = "/dashboard";
+                } catch (e) {
+                    err.textContent = "Bağlantı hatası";
+                    err.style.display = "block";
+                }
+            }
+        </script>
+    </body>
+</html>
