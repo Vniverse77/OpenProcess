@@ -543,6 +543,99 @@ app.post("/api/sms/send", requireAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════
+// SERVICE DELETE
+// ═══════════════════════════════
+
+app.delete("/api/services/:id", requireAdmin, async (req, res) => {
+  try {
+    await pool.query("UPDATE services SET active = false WHERE id = $1", [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════
+// CUSTOMER DETAIL
+// ═══════════════════════════════
+
+app.get("/api/customers/:id", requireAuth, async (req, res) => {
+  try {
+    const cust = await pool.query("SELECT * FROM customers WHERE id = $1", [req.params.id]);
+    if (cust.rows.length === 0) return res.status(404).json({ error: "Müşteri bulunamadı" });
+
+    const vehicles = await pool.query(
+      "SELECT * FROM vehicles WHERE customer_id = $1 ORDER BY created_at DESC", [req.params.id]
+    );
+
+    const jobs = await pool.query(`
+      SELECT j.*, v.plate, v.brand, v.model
+      FROM jobs j JOIN vehicles v ON j.vehicle_id = v.id
+      WHERE j.customer_id = $1 ORDER BY j.created_at DESC LIMIT 50
+    `, [req.params.id]);
+
+    for (const job of jobs.rows) {
+      const svc = await pool.query("SELECT * FROM job_services WHERE job_id = $1", [job.id]);
+      job.services = svc.rows;
+    }
+
+    res.json({
+      customer: cust.rows[0],
+      vehicles: vehicles.rows,
+      jobs: jobs.rows,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════
+// EXPORT (CSV)
+// ═══════════════════════════════
+
+app.get("/api/export/jobs", requireAuth, async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    let query = `
+      SELECT j.created_at as tarih, v.plate as plaka, c.name as musteri, c.phone as telefon,
+             v.brand as marka, v.model, j.total_amount as tutar, j.payment_method as odeme,
+             j.status as durum, j.notes
+      FROM jobs j
+      JOIN vehicles v ON j.vehicle_id = v.id
+      JOIN customers c ON j.customer_id = c.id
+    `;
+    const params = [];
+    const conditions = [];
+    if (from) { params.push(from); conditions.push(`j.created_at::date >= $${params.length}`); }
+    if (to) { params.push(to); conditions.push(`j.created_at::date <= $${params.length}`); }
+    if (conditions.length > 0) query += " WHERE " + conditions.join(" AND ");
+    query += " ORDER BY j.created_at DESC";
+
+    const result = await pool.query(query, params);
+
+    // Build CSV
+    const headers = ["Tarih", "Plaka", "Müşteri", "Telefon", "Marka", "Model", "Tutar", "Ödeme", "Durum", "Notlar"];
+    const paymentMap = { cash: "Nakit", card: "Kredi Kartı", transfer: "Havale", mixed: "Karışık" };
+    const statusMap = { waiting: "Bekliyor", in_progress: "İşlemde", completed: "Hazır", delivered: "Teslim Edildi", cancelled: "İptal" };
+
+    let csv = "\uFEFF" + headers.join(";") + "\n"; // BOM for Turkish chars in Excel
+    for (const r of result.rows) {
+      const date = new Date(r.tarih).toLocaleDateString("tr-TR");
+      csv += [
+        date, r.plaka, r.musteri, r.telefon, r.marka || "", r.model || "",
+        r.tutar, paymentMap[r.odeme] || r.odeme, statusMap[r.durum] || r.durum, r.notes || ""
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(";") + "\n";
+    }
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename=openprocess_rapor_${new Date().toISOString().split("T")[0]}.csv`);
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════
 // PAGES
 // ═══════════════════════════════
 
@@ -556,6 +649,11 @@ pages.forEach((page) => {
   app.get(`/${page}`, (req, res) => {
     res.sendFile(path.join(__dirname, "views", `${page}.html`));
   });
+});
+
+// Customer detail page
+app.get("/customers/:id", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "customer-detail.html"));
 });
 
 // ═══════════════════════════════

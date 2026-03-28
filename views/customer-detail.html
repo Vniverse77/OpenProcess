@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Müşteri Detay — OpenProcess</title><link rel="stylesheet" href="/css/style.css"></head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+      <div class="page-header">
+        <div>
+          <button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')"><svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><line x1='4' x2='20' y1='12' y2='12'/><line x1='4' x2='20' y1='6' y2='6'/><line x1='4' x2='20' y1='18' y2='18'/></svg></button>
+          <div class="page-title" id="custTitle">Müşteri Detay</div>
+          <div class="page-subtitle" id="custSubtitle"></div>
+        </div>
+        <a href="/customers" class="btn btn-ghost">← Müşterilere Dön</a>
+      </div>
+      <div class="page-body">
+        <!-- Customer Info Cards -->
+        <div class="stats-grid" id="custStats"></div>
+
+        <!-- Vehicles -->
+        <div class="card mb-24">
+          <div class="card-header"><div class="card-title">Araçlar</div></div>
+          <div id="vehiclesList"></div>
+        </div>
+
+        <!-- Job History -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">İşlem Geçmişi</div></div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Tarih</th><th>Plaka</th><th>Hizmetler</th><th>Tutar</th><th>Ödeme</th><th>Durum</th></tr></thead>
+              <tbody id="jobHistory"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="/js/icons.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    const custId = window.location.pathname.split("/").pop();
+
+    window.addEventListener("load", async () => {
+      const user = await checkAuth();
+      if (!user) return;
+      document.getElementById("sidebar").innerHTML = renderSidebar(user);
+      initSidebar("customers");
+      loadCustomerDetail();
+    });
+
+    async function loadCustomerDetail() {
+      try {
+        const data = await api(`/api/customers/${custId}`);
+        const c = data.customer;
+        const paymentMap = { cash: "Nakit", card: "Kredi Kartı", transfer: "Havale", mixed: "Karışık" };
+
+        document.getElementById("custTitle").textContent = c.name;
+        document.getElementById("custSubtitle").textContent = c.phone + (c.email ? ` · ${c.email}` : "");
+
+        // Stats
+        document.getElementById("custStats").innerHTML = `
+          <div class="stat-card"><div class="stat-label">Toplam Ziyaret</div><div class="stat-value">${c.total_visits}</div></div>
+          <div class="stat-card"><div class="stat-label">Toplam Harcama</div><div class="stat-value text-success">${formatMoney(c.total_spent)}</div></div>
+          <div class="stat-card"><div class="stat-label">Kayıt Tarihi</div><div class="stat-value" style="font-size:18px">${formatDate(c.created_at)}</div></div>
+          <div class="stat-card"><div class="stat-label">Araç Sayısı</div><div class="stat-value">${data.vehicles.length}</div></div>
+        `;
+
+        // Vehicles
+        document.getElementById("vehiclesList").innerHTML = data.vehicles.map(v => `
+          <div style="display:flex;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--border)">
+            <span class="font-mono fw-700" style="font-size:16px;min-width:120px">${escapeHtml(v.plate)}</span>
+            <span>${escapeHtml(v.brand || "")} ${escapeHtml(v.model || "")}</span>
+            <span class="text-muted">${escapeHtml(v.color || "")}</span>
+            ${v.year ? `<span class="text-muted">${v.year}</span>` : ""}
+          </div>
+        `).join("") || '<div class="empty-state"><p>Kayıtlı araç yok</p></div>';
+
+        // Job history
+        const tbody = document.getElementById("jobHistory");
+        if (data.jobs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>Henüz işlem yok</p></div></td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.jobs.map(j => {
+          const svcs = (j.services || []).map(s => escapeHtml(s.service_name)).join(", ");
+          return `<tr>
+            <td>${formatDateTime(j.created_at)}</td>
+            <td class="font-mono fw-700">${escapeHtml(j.plate)}</td>
+            <td><small>${svcs || "-"}</small></td>
+            <td class="font-mono fw-700 text-success">${formatMoney(j.total_amount)}</td>
+            <td>${paymentMap[j.payment_method] || "-"}</td>
+            <td>${statusBadge(j.status)}</td>
+          </tr>`;
+        }).join("");
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+  </script>
+</body>
+</html>
