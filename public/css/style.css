@@ -43,7 +43,8 @@ body { font-family:'DM Sans',sans-serif; background:var(--bg-primary); color:var
 .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:var(--radius-sm); color:var(--text-secondary); text-decoration:none; font-size:14px; font-weight:500; transition:all var(--transition); margin-bottom:2px; }
 .nav-item:hover { background:var(--bg-hover); color:var(--text-primary); }
 .nav-item.active { background:var(--accent-subtle); color:var(--accent); }
-.nav-item .nav-icon { width:20px; text-align:center; font-size:16px; }
+.nav-item .nav-icon { width:20px; height:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.nav-item .nav-icon svg { width:18px; height:18px; }
 .sidebar-footer { padding:16px; border-top:1px solid var(--border); }
 .user-info { display:flex; align-items:center; gap:10px; padding:8px; }
 .user-avatar { width:32px; height:32px; background:var(--accent-subtle); color:var(--accent); border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
@@ -204,3 +205,10 @@ tr:hover td { background:var(--bg-hover); }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
 ::-webkit-scrollbar-thumb:hover { background:var(--text-muted); }
+
+/* SVG Icon system */
+.nav-icon svg, .btn svg, .toast-icon svg { vertical-align:middle; flex-shrink:0; }
+.btn svg { width:14px; height:14px; }
+.toast-icon { display:flex; align-items:center; }
+.logo-icon svg { color:#fff; }
+.sidebar-logo .logo-icon { color:#fff; }

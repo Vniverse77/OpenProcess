@@ -7,11 +7,11 @@
     <main class="main-content">
       <div class="page-header">
         <div>
-          <button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+          <button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')"><svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><line x1='4' x2='20' y1='12' y2='12'/><line x1='4' x2='20' y1='6' y2='6'/><line x1='4' x2='20' y1='18' y2='18'/></svg></button>
           <div class="page-title">Gösterge Paneli</div>
           <div class="page-subtitle" id="dateDisplay"></div>
         </div>
-        <a href="/jobs" class="btn btn-primary">+ Yeni İş Emri</a>
+        <a href="/jobs" class="btn btn-primary"><svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14'/><path d='M12 5v14'/></svg> Yeni İş Emri</a>
       </div>
       <div class="page-body">
         <div class="stats-grid">
@@ -23,7 +23,7 @@
           <div class="stat-card"><div class="stat-label">Haftalık Ciro</div><div class="stat-value text-success" id="statWeekRevenue">-</div></div>
         </div>
         <div class="card">
-          <div class="card-header"><div class="card-title">Aktif İş Emirleri</div><button class="btn btn-ghost btn-sm" onclick="loadActiveJobs()">↻ Yenile</button></div>
+          <div class="card-header"><div class="card-title">Aktif İş Emirleri</div><button class="btn btn-ghost btn-sm" onclick="loadActiveJobs()"><svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8'/><path d='M21 3v5h-5'/><path d='M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16'/><path d='M8 16H3v5'/></svg> Yenile</button></div>
           <div class="jobs-board">
             <div class="jobs-column"><div class="jobs-column-header"><span class="col-dot" style="background:var(--warning)"></span><span class="col-title">Bekliyor</span><span class="col-count" id="countWaiting">0</span></div><div id="colWaiting"></div></div>
             <div class="jobs-column"><div class="jobs-column-header"><span class="col-dot" style="background:var(--info)"></span><span class="col-title">İşlemde</span><span class="col-count" id="countProgress">0</span></div><div id="colProgress"></div></div>
@@ -33,6 +33,7 @@
       </div>
     </main>
   </div>
+  <script src="/js/icons.js"></script>
   <script src="/js/app.js"></script>
   <script>
     let currentUser;

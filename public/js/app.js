@@ -16,10 +16,14 @@ async function checkAuth() {
 function showToast(message, type = "info") {
   let c = document.querySelector(".toast-container");
   if (!c) { c = document.createElement("div"); c.className = "toast-container"; document.body.appendChild(c); }
-  const icons = { success: "✓", error: "✕", info: "ℹ" };
+  const toastIcons = {
+    success: icon('circle-check', 16),
+    error: icon('circle-alert', 16),
+    info: icon('circle-alert', 16),
+  };
   const t = document.createElement("div");
   t.className = `toast toast-${type}`;
-  t.innerHTML = `<span>${icons[type] || "ℹ"}</span> ${escapeHtml(message)}`;
+  t.innerHTML = `<span class="toast-icon">${toastIcons[type] || toastIcons.info}</span> ${escapeHtml(message)}`;
   c.appendChild(t);
   setTimeout(() => { t.style.opacity = "0"; t.style.transform = "translateX(100%)"; t.style.transition = "all 300ms ease"; setTimeout(() => t.remove(), 300); }, 3500);
 }
@@ -65,25 +69,25 @@ function renderSidebar(user) {
   return `
     <div class="sidebar-header">
       <a href="/dashboard" class="sidebar-logo">
-        <div class="logo-icon">🚗</div>
+        <div class="logo-icon">${icon('droplets', 20)}</div>
         <div><div class="logo-text">OpenProcess</div><div class="logo-sub">Oto Kuaför Sistemi</div></div>
       </a>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section-label">Ana Menü</div>
-      <a href="/dashboard" class="nav-item" data-page="dashboard"><span class="nav-icon">📊</span> Gösterge Paneli</a>
-      <a href="/jobs" class="nav-item" data-page="jobs"><span class="nav-icon">🔧</span> İş Emirleri</a>
-      <a href="/appointments" class="nav-item" data-page="appointments"><span class="nav-icon">📅</span> Randevular</a>
-      <a href="/customers" class="nav-item" data-page="customers"><span class="nav-icon">👥</span> Müşteriler</a>
+      <a href="/dashboard" class="nav-item" data-page="dashboard"><span class="nav-icon">${icon('layout-dashboard', 18)}</span> Gösterge Paneli</a>
+      <a href="/jobs" class="nav-item" data-page="jobs"><span class="nav-icon">${icon('wrench', 18)}</span> İş Emirleri</a>
+      <a href="/appointments" class="nav-item" data-page="appointments"><span class="nav-icon">${icon('calendar-clock', 18)}</span> Randevular</a>
+      <a href="/customers" class="nav-item" data-page="customers"><span class="nav-icon">${icon('users', 18)}</span> Müşteriler</a>
       <div class="nav-section-label">Yönetim</div>
-      <a href="/reports" class="nav-item" data-page="reports"><span class="nav-icon">📈</span> Raporlar</a>
-      <a href="/settings" class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span> Ayarlar</a>
+      <a href="/reports" class="nav-item" data-page="reports"><span class="nav-icon">${icon('bar-chart-3', 18)}</span> Raporlar</a>
+      <a href="/settings" class="nav-item" data-page="settings"><span class="nav-icon">${icon('settings', 18)}</span> Ayarlar</a>
     </nav>
     <div class="sidebar-footer">
       <div class="user-info">
         <div class="user-avatar">${(user?.name || "?")[0].toUpperCase()}</div>
         <div><div class="user-name">${escapeHtml(user?.name)}</div><div class="user-role">${user?.role === "admin" ? "Yönetici" : "Personel"}</div></div>
       </div>
-      <button class="btn btn-ghost btn-sm mt-8" style="width:100%" onclick="logout()">Çıkış Yap</button>
+      <button class="btn btn-ghost btn-sm mt-8" style="width:100%" onclick="logout()">${icon('log-out', 14)} Çıkış Yap</button>
     </div>`;
 }
