@@ -16,11 +16,11 @@ const PORT = process.env.PORT || 3000;
 
 // ─── PostgreSQL ───
 const pool = new pg.Pool({
-  host: process.env.PG_HOST || "127.0.0.1",
-  port: parseInt(process.env.PG_PORT || "5432"),
-  database: process.env.PG_DATABASE || "openprocess_db",
-  user: process.env.PG_USER || "openprocess",
-  password: process.env.PG_PASSWORD || "",
+    host: process.env.PG_HOST || "127.0.0.1",
+    port: parseInt(process.env.PG_PORT || "5432"),
+    database: process.env.PG_DATABASE || "openprocess_db",
+    user: process.env.PG_USER || "openprocess",
+    password: process.env.PG_PASSWORD || "",
 });
 
 // ─── Middleware ───
@@ -30,39 +30,43 @@ app.use(express.static(path.join(__dirname, "public")));
 app.disable("x-powered-by");
 
 app.use((req, res, next) => {
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  next();
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader(
+        "Permissions-Policy",
+        "camera=(), microphone=(), geolocation=()",
+    );
+    next();
 });
 
 // ─── Session ───
 const PgSession = connectPgSimple(session);
 app.use(
-  session({
-    store: new PgSession({ pool, tableName: "session" }),
-    secret: process.env.SESSION_SECRET || "dev-secret-change-me",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-    },
-  })
+    session({
+        store: new PgSession({ pool, tableName: "session" }),
+        secret: process.env.SESSION_SECRET || "dev-secret-change-me",
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+        },
+    }),
 );
 
 // ─── Auth Middleware ───
 function requireAuth(req, res, next) {
-  if (!req.session.user) return res.status(401).json({ error: "Giriş yapmalısınız" });
-  next();
+    if (!req.session.user)
+        return res.status(401).json({ error: "Giriş yapmalısınız" });
+    next();
 }
 function requireAdmin(req, res, next) {
-  if (!req.session.user || req.session.user.role !== "admin")
-    return res.status(403).json({ error: "Yetkiniz yok" });
-  next();
+    if (!req.session.user || req.session.user.role !== "admin")
+        return res.status(403).json({ error: "Yetkiniz yok" });
+    next();
 }
 
 // ═══════════════════════════════
@@ -70,29 +74,47 @@ function requireAdmin(req, res, next) {
 // ═══════════════════════════════
 
 app.post("/api/auth/login", async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: "Kullanıcı adı ve şifre gerekli" });
-    const result = await pool.query("SELECT * FROM users WHERE username = $1 AND active = true", [username]);
-    if (result.rows.length === 0) return res.status(401).json({ error: "Geçersiz kullanıcı adı veya şifre" });
-    const user = result.rows[0];
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: "Geçersiz kullanıcı adı veya şifre" });
-    req.session.user = { id: user.id, username: user.username, name: user.name, role: user.role };
-    res.json({ success: true, user: req.session.user });
-  } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+    try {
+        const { username, password } = req.body;
+        if (!username || !password)
+            return res
+                .status(400)
+                .json({ error: "Kullanıcı adı ve şifre gerekli" });
+        const result = await pool.query(
+            "SELECT * FROM users WHERE username = $1 AND active = true",
+            [username],
+        );
+        if (result.rows.length === 0)
+            return res
+                .status(401)
+                .json({ error: "Geçersiz kullanıcı adı veya şifre" });
+        const user = result.rows[0];
+        const valid = await bcrypt.compare(password, user.password_hash);
+        if (!valid)
+            return res
+                .status(401)
+                .json({ error: "Geçersiz kullanıcı adı veya şifre" });
+        req.session.user = {
+            id: user.id,
+            username: user.username,
+            name: user.name,
+            role: user.role,
+        };
+        res.json({ success: true, user: req.session.user });
+    } catch (err) {
+        console.error("Login error:", err);
+        res.status(500).json({ error: "Sunucu hatası" });
+    }
 });
 
 app.post("/api/auth/logout", (req, res) => {
-  req.session.destroy(() => res.json({ success: true }));
+    req.session.destroy(() => res.json({ success: true }));
 });
 
 app.get("/api/auth/me", (req, res) => {
-  if (!req.session.user) return res.status(401).json({ error: "Giriş yapılmamış" });
-  res.json({ user: req.session.user });
+    if (!req.session.user)
+        return res.status(401).json({ error: "Giriş yapılmamış" });
+    res.json({ user: req.session.user });
 });
 
 // ═══════════════════════════════
@@ -100,46 +122,49 @@ app.get("/api/auth/me", (req, res) => {
 // ═══════════════════════════════
 
 app.get("/api/customers", requireAuth, async (req, res) => {
-  try {
-    const { search } = req.query;
-    let query = "SELECT * FROM customers ORDER BY created_at DESC LIMIT 100";
-    let params = [];
-    if (search) {
-      query = "SELECT * FROM customers WHERE name ILIKE $1 OR phone ILIKE $1 ORDER BY created_at DESC LIMIT 50";
-      params = [`%${search}%`];
+    try {
+        const { search } = req.query;
+        let query =
+            "SELECT * FROM customers ORDER BY created_at DESC LIMIT 100";
+        let params = [];
+        if (search) {
+            query =
+                "SELECT * FROM customers WHERE name ILIKE $1 OR phone ILIKE $1 ORDER BY created_at DESC LIMIT 50";
+            params = [`%${search}%`];
+        }
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    const result = await pool.query(query, params);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 app.post("/api/customers", requireAuth, async (req, res) => {
-  try {
-    const { name, phone, email, notes } = req.body;
-    if (!name || !phone) return res.status(400).json({ error: "İsim ve telefon gerekli" });
-    const result = await pool.query(
-      "INSERT INTO customers (name, phone, email, notes) VALUES ($1,$2,$3,$4) RETURNING *",
-      [name, phone, email || null, notes || null]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { name, phone, email, notes } = req.body;
+        if (!name || !phone)
+            return res.status(400).json({ error: "İsim ve telefon gerekli" });
+        const result = await pool.query(
+            "INSERT INTO customers (name, phone, email, notes) VALUES ($1,$2,$3,$4) RETURNING *",
+            [name, phone, email || null, notes || null],
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.put("/api/customers/:id", requireAuth, async (req, res) => {
-  try {
-    const { name, phone, email, notes } = req.body;
-    const result = await pool.query(
-      "UPDATE customers SET name=$1, phone=$2, email=$3, notes=$4 WHERE id=$5 RETURNING *",
-      [name, phone, email, notes, req.params.id]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { name, phone, email, notes } = req.body;
+        const result = await pool.query(
+            "UPDATE customers SET name=$1, phone=$2, email=$3, notes=$4 WHERE id=$5 RETURNING *",
+            [name, phone, email, notes, req.params.id],
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ═══════════════════════════════
@@ -147,51 +172,61 @@ app.put("/api/customers/:id", requireAuth, async (req, res) => {
 // ═══════════════════════════════
 
 app.get("/api/vehicles/search/:plate", requireAuth, async (req, res) => {
-  try {
-    const plate = req.params.plate.replace(/\s/g, "").toUpperCase();
-    const result = await pool.query(
-      `SELECT v.*, c.name as customer_name, c.phone as customer_phone, c.id as customer_id
+    try {
+        const plate = req.params.plate.replace(/\s/g, "").toUpperCase();
+        const result = await pool.query(
+            `SELECT v.*, c.name as customer_name, c.phone as customer_phone, c.id as customer_id
        FROM vehicles v JOIN customers c ON v.customer_id = c.id
        WHERE UPPER(REPLACE(v.plate, ' ', '')) = $1`,
-      [plate]
-    );
-    if (result.rows.length === 0) return res.json({ found: false });
-    res.json({ found: true, vehicle: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+            [plate],
+        );
+        if (result.rows.length === 0) return res.json({ found: false });
+        res.json({ found: true, vehicle: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.get("/api/vehicles", requireAuth, async (req, res) => {
-  try {
-    const { customer_id } = req.query;
-    let query = `SELECT v.*, c.name as customer_name, c.phone as customer_phone
+    try {
+        const { customer_id } = req.query;
+        let query = `SELECT v.*, c.name as customer_name, c.phone as customer_phone
                  FROM vehicles v JOIN customers c ON v.customer_id = c.id ORDER BY v.created_at DESC LIMIT 100`;
-    let params = [];
-    if (customer_id) {
-      query = `SELECT v.*, c.name as customer_name, c.phone as customer_phone
+        let params = [];
+        if (customer_id) {
+            query = `SELECT v.*, c.name as customer_name, c.phone as customer_phone
                FROM vehicles v JOIN customers c ON v.customer_id = c.id WHERE v.customer_id = $1 ORDER BY v.created_at DESC`;
-      params = [customer_id];
+            params = [customer_id];
+        }
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    const result = await pool.query(query, params);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 app.post("/api/vehicles", requireAuth, async (req, res) => {
-  try {
-    const { customer_id, plate, brand, model, color, year, notes } = req.body;
-    if (!customer_id || !plate) return res.status(400).json({ error: "Müşteri ve plaka gerekli" });
-    const result = await pool.query(
-      "INSERT INTO vehicles (customer_id, plate, brand, model, color, year, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *",
-      [customer_id, plate.toUpperCase().replace(/\s/g, ""), brand, model, color, year || null, notes]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { customer_id, plate, brand, model, color, year, notes } =
+            req.body;
+        if (!customer_id || !plate)
+            return res.status(400).json({ error: "Müşteri ve plaka gerekli" });
+        const result = await pool.query(
+            "INSERT INTO vehicles (customer_id, plate, brand, model, color, year, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *",
+            [
+                customer_id,
+                plate.toUpperCase().replace(/\s/g, ""),
+                brand,
+                model,
+                color,
+                year || null,
+                notes,
+            ],
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ═══════════════════════════════
@@ -199,38 +234,56 @@ app.post("/api/vehicles", requireAuth, async (req, res) => {
 // ═══════════════════════════════
 
 app.get("/api/services", requireAuth, async (req, res) => {
-  try {
-    const result = await pool.query("SELECT * FROM services WHERE active = true ORDER BY sort_order, category, name");
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const result = await pool.query(
+            "SELECT * FROM services WHERE active = true ORDER BY sort_order, category, name",
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.post("/api/services", requireAdmin, async (req, res) => {
-  try {
-    const { name, category, price, duration_minutes, description } = req.body;
-    const result = await pool.query(
-      "INSERT INTO services (name, category, price, duration_minutes, description) VALUES ($1,$2,$3,$4,$5) RETURNING *",
-      [name, category || "genel", price, duration_minutes || 30, description]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { name, category, price, duration_minutes, description } =
+            req.body;
+        const result = await pool.query(
+            "INSERT INTO services (name, category, price, duration_minutes, description) VALUES ($1,$2,$3,$4,$5) RETURNING *",
+            [
+                name,
+                category || "genel",
+                price,
+                duration_minutes || 30,
+                description,
+            ],
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.put("/api/services/:id", requireAdmin, async (req, res) => {
-  try {
-    const { name, category, price, duration_minutes, description, active } = req.body;
-    const result = await pool.query(
-      "UPDATE services SET name=$1, category=$2, price=$3, duration_minutes=$4, description=$5, active=$6 WHERE id=$7 RETURNING *",
-      [name, category, price, duration_minutes, description, active, req.params.id]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { name, category, price, duration_minutes, description, active } =
+            req.body;
+        const result = await pool.query(
+            "UPDATE services SET name=$1, category=$2, price=$3, duration_minutes=$4, description=$5, active=$6 WHERE id=$7 RETURNING *",
+            [
+                name,
+                category,
+                price,
+                duration_minutes,
+                description,
+                active,
+                req.params.id,
+            ],
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ═══════════════════════════════
@@ -238,9 +291,9 @@ app.put("/api/services/:id", requireAdmin, async (req, res) => {
 // ═══════════════════════════════
 
 app.get("/api/jobs", requireAuth, async (req, res) => {
-  try {
-    const { status, date } = req.query;
-    let query = `
+    try {
+        const { status, date } = req.query;
+        let query = `
       SELECT j.*, v.plate, v.brand, v.model, v.color,
              c.name as customer_name, c.phone as customer_phone,
              u.name as assigned_name
@@ -248,26 +301,36 @@ app.get("/api/jobs", requireAuth, async (req, res) => {
       JOIN vehicles v ON j.vehicle_id = v.id
       JOIN customers c ON j.customer_id = c.id
       LEFT JOIN users u ON j.assigned_to = u.id`;
-    const conditions = [];
-    const params = [];
-    if (status) { params.push(status); conditions.push(`j.status = $${params.length}`); }
-    if (date) { params.push(date); conditions.push(`j.created_at::date = $${params.length}`); }
-    if (conditions.length > 0) query += " WHERE " + conditions.join(" AND ");
-    query += " ORDER BY j.created_at DESC LIMIT 200";
-    const result = await pool.query(query, params);
-    for (const job of result.rows) {
-      const svc = await pool.query("SELECT * FROM job_services WHERE job_id = $1", [job.id]);
-      job.services = svc.rows;
+        const conditions = [];
+        const params = [];
+        if (status) {
+            params.push(status);
+            conditions.push(`j.status = $${params.length}`);
+        }
+        if (date) {
+            params.push(date);
+            conditions.push(`j.created_at::date = $${params.length}`);
+        }
+        if (conditions.length > 0)
+            query += " WHERE " + conditions.join(" AND ");
+        query += " ORDER BY j.created_at DESC LIMIT 200";
+        const result = await pool.query(query, params);
+        for (const job of result.rows) {
+            const svc = await pool.query(
+                "SELECT * FROM job_services WHERE job_id = $1",
+                [job.id],
+            );
+            job.services = svc.rows;
+        }
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 app.get("/api/jobs/active", requireAuth, async (req, res) => {
-  try {
-    const result = await pool.query(`
+    try {
+        const result = await pool.query(`
       SELECT j.*, v.plate, v.brand, v.model, v.color,
              c.name as customer_name, c.phone as customer_phone,
              u.name as assigned_name
@@ -278,97 +341,126 @@ app.get("/api/jobs/active", requireAuth, async (req, res) => {
       WHERE j.status IN ('waiting','in_progress','completed')
       ORDER BY CASE j.status WHEN 'waiting' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'completed' THEN 3 END, j.created_at ASC
     `);
-    for (const job of result.rows) {
-      const svc = await pool.query("SELECT * FROM job_services WHERE job_id = $1", [job.id]);
-      job.services = svc.rows;
+        for (const job of result.rows) {
+            const svc = await pool.query(
+                "SELECT * FROM job_services WHERE job_id = $1",
+                [job.id],
+            );
+            job.services = svc.rows;
+        }
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 app.post("/api/jobs", requireAuth, async (req, res) => {
-  try {
-    const { vehicle_id, customer_id, service_ids, notes, assigned_to } = req.body;
-    if (!vehicle_id || !customer_id) return res.status(400).json({ error: "Araç ve müşteri gerekli" });
-    const client = await pool.connect();
     try {
-      await client.query("BEGIN");
-      const jobResult = await client.query(
-        "INSERT INTO jobs (vehicle_id, customer_id, notes, assigned_to) VALUES ($1,$2,$3,$4) RETURNING *",
-        [vehicle_id, customer_id, notes || null, assigned_to || null]
-      );
-      const job = jobResult.rows[0];
-      let totalAmount = 0;
-      if (service_ids && service_ids.length > 0) {
-        for (const sid of service_ids) {
-          const svc = await client.query("SELECT name, price FROM services WHERE id = $1", [sid]);
-          if (svc.rows.length > 0) {
-            await client.query(
-              "INSERT INTO job_services (job_id, service_id, service_name, price) VALUES ($1,$2,$3,$4)",
-              [job.id, sid, svc.rows[0].name, svc.rows[0].price]
+        const { vehicle_id, customer_id, service_ids, notes, assigned_to } =
+            req.body;
+        if (!vehicle_id || !customer_id)
+            return res.status(400).json({ error: "Araç ve müşteri gerekli" });
+        const client = await pool.connect();
+        try {
+            await client.query("BEGIN");
+            const jobResult = await client.query(
+                "INSERT INTO jobs (vehicle_id, customer_id, notes, assigned_to) VALUES ($1,$2,$3,$4) RETURNING *",
+                [vehicle_id, customer_id, notes || null, assigned_to || null],
             );
-            totalAmount += parseFloat(svc.rows[0].price);
-          }
+            const job = jobResult.rows[0];
+            let totalAmount = 0;
+            if (service_ids && service_ids.length > 0) {
+                for (const sid of service_ids) {
+                    const svc = await client.query(
+                        "SELECT name, price FROM services WHERE id = $1",
+                        [sid],
+                    );
+                    if (svc.rows.length > 0) {
+                        await client.query(
+                            "INSERT INTO job_services (job_id, service_id, service_name, price) VALUES ($1,$2,$3,$4)",
+                            [job.id, sid, svc.rows[0].name, svc.rows[0].price],
+                        );
+                        totalAmount += parseFloat(svc.rows[0].price);
+                    }
+                }
+            }
+            await client.query(
+                "UPDATE jobs SET total_amount = $1 WHERE id = $2",
+                [totalAmount, job.id],
+            );
+            await client.query(
+                "UPDATE customers SET total_visits = total_visits + 1 WHERE id = $1",
+                [customer_id],
+            );
+            await client.query("COMMIT");
+            job.total_amount = totalAmount;
+            res.json(job);
+        } catch (err) {
+            await client.query("ROLLBACK");
+            throw err;
+        } finally {
+            client.release();
         }
-      }
-      await client.query("UPDATE jobs SET total_amount = $1 WHERE id = $2", [totalAmount, job.id]);
-      await client.query("UPDATE customers SET total_visits = total_visits + 1 WHERE id = $1", [customer_id]);
-      await client.query("COMMIT");
-      job.total_amount = totalAmount;
-      res.json(job);
     } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
+        res.status(500).json({ error: err.message });
     }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 app.patch("/api/jobs/:id/status", requireAuth, async (req, res) => {
-  try {
-    const { status } = req.body;
-    const jobId = req.params.id;
-    const validTransitions = {
-      waiting: ["in_progress", "cancelled"],
-      in_progress: ["completed", "cancelled"],
-      completed: ["delivered", "in_progress"],
-      delivered: [],
-      cancelled: ["waiting"],
-    };
-    const current = await pool.query("SELECT status FROM jobs WHERE id = $1", [jobId]);
-    if (current.rows.length === 0) return res.status(404).json({ error: "İş emri bulunamadı" });
-    if (!validTransitions[current.rows[0].status]?.includes(status))
-      return res.status(400).json({ error: `${current.rows[0].status} → ${status} geçişi yapılamaz` });
-    let extra = "";
-    if (status === "in_progress") extra = ", started_at = NOW()";
-    if (status === "completed") extra = ", completed_at = NOW()";
-    if (status === "delivered") extra = ", delivered_at = NOW()";
-    const result = await pool.query(`UPDATE jobs SET status = $1 ${extra} WHERE id = $2 RETURNING *`, [status, jobId]);
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { status } = req.body;
+        const jobId = req.params.id;
+        const validTransitions = {
+            waiting: ["in_progress", "cancelled"],
+            in_progress: ["completed", "cancelled"],
+            completed: ["delivered", "in_progress"],
+            delivered: [],
+            cancelled: ["waiting"],
+        };
+        const current = await pool.query(
+            "SELECT status FROM jobs WHERE id = $1",
+            [jobId],
+        );
+        if (current.rows.length === 0)
+            return res.status(404).json({ error: "İş emri bulunamadı" });
+        if (!validTransitions[current.rows[0].status]?.includes(status))
+            return res
+                .status(400)
+                .json({
+                    error: `${current.rows[0].status} → ${status} geçişi yapılamaz`,
+                });
+        let extra = "";
+        if (status === "in_progress") extra = ", started_at = NOW()";
+        if (status === "completed") extra = ", completed_at = NOW()";
+        if (status === "delivered") extra = ", delivered_at = NOW()";
+        const result = await pool.query(
+            `UPDATE jobs SET status = $1 ${extra} WHERE id = $2 RETURNING *`,
+            [status, jobId],
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.patch("/api/jobs/:id/pay", requireAuth, async (req, res) => {
-  try {
-    const { payment_method } = req.body;
-    const result = await pool.query(
-      "UPDATE jobs SET paid = true, payment_method = $1, status = 'delivered', delivered_at = NOW() WHERE id = $2 RETURNING *",
-      [payment_method, req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: "İş emri bulunamadı" });
-    const job = result.rows[0];
-    await pool.query("UPDATE customers SET total_spent = total_spent + $1 WHERE id = $2", [job.total_amount, job.customer_id]);
-    res.json(job);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { payment_method } = req.body;
+        const result = await pool.query(
+            "UPDATE jobs SET paid = true, payment_method = $1, status = 'delivered', delivered_at = NOW() WHERE id = $2 RETURNING *",
+            [payment_method, req.params.id],
+        );
+        if (result.rows.length === 0)
+            return res.status(404).json({ error: "İş emri bulunamadı" });
+        const job = result.rows[0];
+        await pool.query(
+            "UPDATE customers SET total_spent = total_spent + $1 WHERE id = $2",
+            [job.total_amount, job.customer_id],
+        );
+        res.json(job);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ═══════════════════════════════
@@ -376,47 +468,71 @@ app.patch("/api/jobs/:id/pay", requireAuth, async (req, res) => {
 // ═══════════════════════════════
 
 app.get("/api/appointments", requireAuth, async (req, res) => {
-  try {
-    const { date, status } = req.query;
-    let query = `SELECT a.*, c.name as customer_name, c.phone as customer_phone,
+    try {
+        const { date, status } = req.query;
+        let query = `SELECT a.*, c.name as customer_name, c.phone as customer_phone,
                  v.plate, v.brand, v.model FROM appointments a
                  LEFT JOIN customers c ON a.customer_id = c.id
                  LEFT JOIN vehicles v ON a.vehicle_id = v.id`;
-    const conditions = [];
-    const params = [];
-    if (date) { params.push(date); conditions.push(`a.appointment_date = $${params.length}`); }
-    if (status) { params.push(status); conditions.push(`a.status = $${params.length}`); }
-    if (conditions.length > 0) query += " WHERE " + conditions.join(" AND ");
-    query += " ORDER BY a.appointment_date, a.appointment_time";
-    const result = await pool.query(query, params);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+        const conditions = [];
+        const params = [];
+        if (date) {
+            params.push(date);
+            conditions.push(`a.appointment_date = $${params.length}`);
+        }
+        if (status) {
+            params.push(status);
+            conditions.push(`a.status = $${params.length}`);
+        }
+        if (conditions.length > 0)
+            query += " WHERE " + conditions.join(" AND ");
+        query += " ORDER BY a.appointment_date, a.appointment_time";
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.post("/api/appointments", requireAuth, async (req, res) => {
-  try {
-    const { customer_id, vehicle_id, appointment_date, appointment_time, service_notes } = req.body;
-    if (!customer_id || !appointment_date || !appointment_time)
-      return res.status(400).json({ error: "Müşteri, tarih ve saat gerekli" });
-    const result = await pool.query(
-      "INSERT INTO appointments (customer_id, vehicle_id, appointment_date, appointment_time, service_notes) VALUES ($1,$2,$3,$4,$5) RETURNING *",
-      [customer_id, vehicle_id || null, appointment_date, appointment_time, service_notes]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const {
+            customer_id,
+            vehicle_id,
+            appointment_date,
+            appointment_time,
+            service_notes,
+        } = req.body;
+        if (!customer_id || !appointment_date || !appointment_time)
+            return res
+                .status(400)
+                .json({ error: "Müşteri, tarih ve saat gerekli" });
+        const result = await pool.query(
+            "INSERT INTO appointments (customer_id, vehicle_id, appointment_date, appointment_time, service_notes) VALUES ($1,$2,$3,$4,$5) RETURNING *",
+            [
+                customer_id,
+                vehicle_id || null,
+                appointment_date,
+                appointment_time,
+                service_notes,
+            ],
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.patch("/api/appointments/:id/status", requireAuth, async (req, res) => {
-  try {
-    const result = await pool.query("UPDATE appointments SET status = $1 WHERE id = $2 RETURNING *", [req.body.status, req.params.id]);
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const result = await pool.query(
+            "UPDATE appointments SET status = $1 WHERE id = $2 RETURNING *",
+            [req.body.status, req.params.id],
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ═══════════════════════════════
@@ -424,65 +540,83 @@ app.patch("/api/appointments/:id/status", requireAuth, async (req, res) => {
 // ═══════════════════════════════
 
 app.get("/api/stats/dashboard", requireAuth, async (req, res) => {
-  try {
-    const today = new Date().toISOString().split("T")[0];
-    const [activeJobs, todayJobs, todayRevenue, totalCustomers, weekRevenue] = await Promise.all([
-      pool.query("SELECT status, COUNT(*) as count FROM jobs WHERE status IN ('waiting','in_progress','completed') GROUP BY status"),
-      pool.query("SELECT COUNT(*) as count FROM jobs WHERE created_at::date = $1", [today]),
-      pool.query("SELECT COALESCE(SUM(total_amount),0) as total FROM jobs WHERE delivered_at::date = $1 AND paid = true", [today]),
-      pool.query("SELECT COUNT(*) as count FROM customers"),
-      pool.query("SELECT COALESCE(SUM(total_amount),0) as total FROM jobs WHERE delivered_at >= NOW() - INTERVAL '7 days' AND paid = true"),
-    ]);
-    const statusCounts = { waiting: 0, in_progress: 0, completed: 0 };
-    activeJobs.rows.forEach((r) => { statusCounts[r.status] = parseInt(r.count); });
-    res.json({
-      active_jobs: statusCounts,
-      today_jobs: parseInt(todayJobs.rows[0].count),
-      today_revenue: parseFloat(todayRevenue.rows[0].total),
-      total_customers: parseInt(totalCustomers.rows[0].count),
-      week_revenue: parseFloat(weekRevenue.rows[0].total),
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const today = new Date().toISOString().split("T")[0];
+        const [
+            activeJobs,
+            todayJobs,
+            todayRevenue,
+            totalCustomers,
+            weekRevenue,
+        ] = await Promise.all([
+            pool.query(
+                "SELECT status, COUNT(*) as count FROM jobs WHERE status IN ('waiting','in_progress','completed') GROUP BY status",
+            ),
+            pool.query(
+                "SELECT COUNT(*) as count FROM jobs WHERE created_at::date = $1",
+                [today],
+            ),
+            pool.query(
+                "SELECT COALESCE(SUM(total_amount),0) as total FROM jobs WHERE delivered_at::date = $1 AND paid = true",
+                [today],
+            ),
+            pool.query("SELECT COUNT(*) as count FROM customers"),
+            pool.query(
+                "SELECT COALESCE(SUM(total_amount),0) as total FROM jobs WHERE delivered_at >= NOW() - INTERVAL '7 days' AND paid = true",
+            ),
+        ]);
+        const statusCounts = { waiting: 0, in_progress: 0, completed: 0 };
+        activeJobs.rows.forEach((r) => {
+            statusCounts[r.status] = parseInt(r.count);
+        });
+        res.json({
+            active_jobs: statusCounts,
+            today_jobs: parseInt(todayJobs.rows[0].count),
+            today_revenue: parseFloat(todayRevenue.rows[0].total),
+            total_customers: parseInt(totalCustomers.rows[0].count),
+            week_revenue: parseFloat(weekRevenue.rows[0].total),
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.get("/api/stats/revenue", requireAuth, async (req, res) => {
-  try {
-    const { period } = req.query;
-    let query;
-    if (period === "monthly") {
-      query = `SELECT DATE_TRUNC('month', delivered_at) as period, COUNT(*) as job_count, SUM(total_amount) as total,
+    try {
+        const { period } = req.query;
+        let query;
+        if (period === "monthly") {
+            query = `SELECT DATE_TRUNC('month', delivered_at) as period, COUNT(*) as job_count, SUM(total_amount) as total,
                SUM(CASE WHEN payment_method='cash' THEN total_amount ELSE 0 END) as cash_total,
                SUM(CASE WHEN payment_method='card' THEN total_amount ELSE 0 END) as card_total
                FROM jobs WHERE paid = true AND delivered_at >= NOW() - INTERVAL '12 months'
                GROUP BY DATE_TRUNC('month', delivered_at) ORDER BY period DESC`;
-    } else {
-      query = `SELECT delivered_at::date as period, COUNT(*) as job_count, SUM(total_amount) as total,
+        } else {
+            query = `SELECT delivered_at::date as period, COUNT(*) as job_count, SUM(total_amount) as total,
                SUM(CASE WHEN payment_method='cash' THEN total_amount ELSE 0 END) as cash_total,
                SUM(CASE WHEN payment_method='card' THEN total_amount ELSE 0 END) as card_total
                FROM jobs WHERE paid = true AND delivered_at >= NOW() - INTERVAL '30 days'
                GROUP BY delivered_at::date ORDER BY period DESC`;
+        }
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    const result = await pool.query(query);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 app.get("/api/stats/popular-services", requireAuth, async (req, res) => {
-  try {
-    const result = await pool.query(`
+    try {
+        const result = await pool.query(`
       SELECT js.service_name, COUNT(*) as count, SUM(js.price) as total_revenue
       FROM job_services js JOIN jobs j ON js.job_id = j.id
       WHERE j.delivered_at >= NOW() - INTERVAL '30 days'
       GROUP BY js.service_name ORDER BY count DESC LIMIT 10
     `);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ═══════════════════════════════
@@ -490,56 +624,244 @@ app.get("/api/stats/popular-services", requireAuth, async (req, res) => {
 // ═══════════════════════════════
 
 app.get("/api/users", requireAdmin, async (req, res) => {
-  try {
-    const result = await pool.query("SELECT id, username, name, role, phone, active, created_at FROM users ORDER BY created_at");
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const result = await pool.query(
+            "SELECT id, username, name, role, phone, active, created_at FROM users ORDER BY created_at",
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.post("/api/users", requireAdmin, async (req, res) => {
-  try {
-    const { username, password, name, role, phone } = req.body;
-    if (!username || !password || !name) return res.status(400).json({ error: "Kullanıcı adı, şifre ve isim gerekli" });
-    const hash = await bcrypt.hash(password, 12);
-    const result = await pool.query(
-      "INSERT INTO users (username, password_hash, name, role, phone) VALUES ($1,$2,$3,$4,$5) RETURNING id, username, name, role",
-      [username, hash, name, role || "staff", phone]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    if (err.code === "23505") return res.status(400).json({ error: "Bu kullanıcı adı zaten mevcut" });
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { username, password, name, role, phone } = req.body;
+        if (!username || !password || !name)
+            return res
+                .status(400)
+                .json({ error: "Kullanıcı adı, şifre ve isim gerekli" });
+        const hash = await bcrypt.hash(password, 12);
+        const result = await pool.query(
+            "INSERT INTO users (username, password_hash, name, role, phone) VALUES ($1,$2,$3,$4,$5) RETURNING id, username, name, role",
+            [username, hash, name, role || "staff", phone],
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        if (err.code === "23505")
+            return res
+                .status(400)
+                .json({ error: "Bu kullanıcı adı zaten mevcut" });
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ═══════════════════════════════
-// SMS (placeholder)
+// SMS (NetGSM + HTTP API)
 // ═══════════════════════════════
 
-app.post("/api/sms/send", requireAuth, async (req, res) => {
-  try {
-    const { job_id, phone, sms_type } = req.body;
-    const templates = {
-      welcome: "Merhaba! Aracınız teslim alınmıştır. İşlem tamamlandığında size bilgi vereceğiz.",
-      ready: "Aracınızın işlemi tamamlanmıştır. Teslim almak için bekliyoruz.",
-      appointment_reminder: "Hatırlatma: Yarın randevunuz bulunmaktadır.",
-    };
-    const message = templates[sms_type] || templates.welcome;
-    await pool.query(
-      "INSERT INTO sms_logs (job_id, phone, message, sms_type, status) VALUES ($1,$2,$3,$4,$5)",
-      [job_id || null, phone, message, sms_type, "logged"]
-    );
-    if (job_id) {
-      if (sms_type === "welcome") await pool.query("UPDATE jobs SET sms_welcome_sent = true WHERE id = $1", [job_id]);
-      if (sms_type === "ready") await pool.query("UPDATE jobs SET sms_ready_sent = true WHERE id = $1", [job_id]);
+// SMS gönderme fonksiyonu
+async function sendSmsViaApi(phone, message) {
+    const provider = process.env.SMS_PROVIDER || "none"; // netgsm, http, none
+    const cleanPhone = String(phone).replace(/\D/g, "");
+
+    if (provider === "netgsm") {
+        // NetGSM REST API
+        const usercode = process.env.SMS_USERCODE;
+        const password = process.env.SMS_PASSWORD;
+        const msgheader = process.env.SMS_MSGHEADER || "OTOKUAFOR";
+
+        if (!usercode || !password) {
+            return { success: false, error: "NetGSM bilgileri eksik (.env)" };
+        }
+
+        try {
+            const payload = {
+                msgheader,
+                encoding: "TR",
+                messages: [{ msg: message, no: cleanPhone }],
+            };
+
+            const response = await fetch(
+                "https://api.netgsm.com.tr/sms/rest/send",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Basic ${Buffer.from(`${usercode}:${password}`).toString("base64")}`,
+                    },
+                    body: JSON.stringify(payload),
+                },
+            );
+
+            const data = await response.json();
+
+            if (data.code === "00" || data.code === 0) {
+                return {
+                    success: true,
+                    jobId: data.bulkid,
+                    provider: "netgsm",
+                };
+            } else {
+                return {
+                    success: false,
+                    error: `NetGSM hata kodu: ${data.code}`,
+                    provider: "netgsm",
+                };
+            }
+        } catch (err) {
+            return { success: false, error: err.message, provider: "netgsm" };
+        }
+    } else if (provider === "http") {
+        // Generic HTTP SMS API (İletimerkezi, Mutlucell vb.)
+        const apiUrl = process.env.SMS_API_URL;
+        const apiKey = process.env.SMS_API_KEY;
+        const sender = process.env.SMS_MSGHEADER || "OTOKUAFOR";
+
+        if (!apiUrl || !apiKey) {
+            return {
+                success: false,
+                error: "HTTP SMS API bilgileri eksik (.env)",
+            };
+        }
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    sender,
+                    to: cleanPhone,
+                    message,
+                }),
+            });
+
+            const data = await response.json();
+            return { success: response.ok, data, provider: "http" };
+        } catch (err) {
+            return { success: false, error: err.message, provider: "http" };
+        }
     }
-    // TODO: Gerçek SMS gönderimi (NetGSM/İletimerkezi API)
-    res.json({ success: true, message: "SMS kaydedildi (test modu)" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+
+    // Test modu (SMS_PROVIDER=none veya ayarlanmamış)
+    return {
+        success: true,
+        provider: "test",
+        message: "SMS test modunda loglandı",
+    };
+}
+
+// SMS gönder endpoint
+app.post("/api/sms/send", requireAuth, async (req, res) => {
+    try {
+        const { job_id, phone, sms_type, custom_message } = req.body;
+
+        if (!phone)
+            return res.status(400).json({ error: "Telefon numarası gerekli" });
+
+        // Mesaj şablonları — işletme adı .env'den okunur
+        const bizName = process.env.SMS_BUSINESS_NAME || "Oto Kuaför";
+        const templates = {
+            welcome: `Merhaba! Aracınız ${bizName} tarafından teslim alınmıştır. İşlem tamamlandığında size bilgi vereceğiz.`,
+            ready: `Aracınızın işlemi tamamlanmıştır! Teslim almak için ${bizName}'e bekleriz.`,
+            appointment_reminder: `Hatırlatma: Yarın ${bizName}'de randevunuz bulunmaktadır.`,
+            appointment_confirmed: `Randevunuz onaylanmıştır. ${bizName}'de görüşmek üzere!`,
+        };
+
+        const message =
+            custom_message || templates[sms_type] || templates.welcome;
+
+        // SMS gönder
+        const result = await sendSmsViaApi(phone, message);
+
+        // Log kaydet
+        await pool.query(
+            "INSERT INTO sms_logs (job_id, phone, message, sms_type, status) VALUES ($1,$2,$3,$4,$5)",
+            [
+                job_id || null,
+                phone,
+                message,
+                sms_type,
+                result.success ? "sent" : "failed",
+            ],
+        );
+
+        // İş emri flag güncelle
+        if (job_id) {
+            if (sms_type === "welcome")
+                await pool.query(
+                    "UPDATE jobs SET sms_welcome_sent = true WHERE id = $1",
+                    [job_id],
+                );
+            if (sms_type === "ready")
+                await pool.query(
+                    "UPDATE jobs SET sms_ready_sent = true WHERE id = $1",
+                    [job_id],
+                );
+        }
+
+        if (result.success) {
+            const modeText = result.provider === "test" ? " (test modu)" : "";
+            res.json({
+                success: true,
+                message: `SMS gönderildi${modeText}`,
+                provider: result.provider,
+            });
+        } else {
+            res.json({
+                success: false,
+                error: result.error,
+                message: "SMS gönderilemedi",
+            });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// SMS logları
+app.get("/api/sms/logs", requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT * FROM sms_logs ORDER BY sent_at DESC LIMIT 100",
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// SMS ayarları kontrol
+app.get("/api/sms/status", requireAuth, async (req, res) => {
+    const provider = process.env.SMS_PROVIDER || "none";
+    const configured =
+        provider !== "none" &&
+        ((provider === "netgsm" &&
+            process.env.SMS_USERCODE &&
+            process.env.SMS_PASSWORD) ||
+            (provider === "http" &&
+                process.env.SMS_API_URL &&
+                process.env.SMS_API_KEY));
+
+    const totalSent = await pool.query(
+        "SELECT COUNT(*) as count FROM sms_logs WHERE status = 'sent'",
+    );
+    const totalFailed = await pool.query(
+        "SELECT COUNT(*) as count FROM sms_logs WHERE status = 'failed'",
+    );
+
+    res.json({
+        provider,
+        configured: !!configured,
+        test_mode: provider === "none",
+        stats: {
+            sent: parseInt(totalSent.rows[0].count),
+            failed: parseInt(totalFailed.rows[0].count),
+        },
+    });
 });
 
 // ═══════════════════════════════
@@ -547,12 +869,14 @@ app.post("/api/sms/send", requireAuth, async (req, res) => {
 // ═══════════════════════════════
 
 app.delete("/api/services/:id", requireAdmin, async (req, res) => {
-  try {
-    await pool.query("UPDATE services SET active = false WHERE id = $1", [req.params.id]);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        await pool.query("UPDATE services SET active = false WHERE id = $1", [
+            req.params.id,
+        ]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ═══════════════════════════════
@@ -560,33 +884,43 @@ app.delete("/api/services/:id", requireAdmin, async (req, res) => {
 // ═══════════════════════════════
 
 app.get("/api/customers/:id", requireAuth, async (req, res) => {
-  try {
-    const cust = await pool.query("SELECT * FROM customers WHERE id = $1", [req.params.id]);
-    if (cust.rows.length === 0) return res.status(404).json({ error: "Müşteri bulunamadı" });
+    try {
+        const cust = await pool.query("SELECT * FROM customers WHERE id = $1", [
+            req.params.id,
+        ]);
+        if (cust.rows.length === 0)
+            return res.status(404).json({ error: "Müşteri bulunamadı" });
 
-    const vehicles = await pool.query(
-      "SELECT * FROM vehicles WHERE customer_id = $1 ORDER BY created_at DESC", [req.params.id]
-    );
+        const vehicles = await pool.query(
+            "SELECT * FROM vehicles WHERE customer_id = $1 ORDER BY created_at DESC",
+            [req.params.id],
+        );
 
-    const jobs = await pool.query(`
+        const jobs = await pool.query(
+            `
       SELECT j.*, v.plate, v.brand, v.model
       FROM jobs j JOIN vehicles v ON j.vehicle_id = v.id
       WHERE j.customer_id = $1 ORDER BY j.created_at DESC LIMIT 50
-    `, [req.params.id]);
+    `,
+            [req.params.id],
+        );
 
-    for (const job of jobs.rows) {
-      const svc = await pool.query("SELECT * FROM job_services WHERE job_id = $1", [job.id]);
-      job.services = svc.rows;
+        for (const job of jobs.rows) {
+            const svc = await pool.query(
+                "SELECT * FROM job_services WHERE job_id = $1",
+                [job.id],
+            );
+            job.services = svc.rows;
+        }
+
+        res.json({
+            customer: cust.rows[0],
+            vehicles: vehicles.rows,
+            jobs: jobs.rows,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-
-    res.json({
-      customer: cust.rows[0],
-      vehicles: vehicles.rows,
-      jobs: jobs.rows,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 // ═══════════════════════════════
@@ -594,9 +928,9 @@ app.get("/api/customers/:id", requireAuth, async (req, res) => {
 // ═══════════════════════════════
 
 app.get("/api/export/jobs", requireAuth, async (req, res) => {
-  try {
-    const { from, to } = req.query;
-    let query = `
+    try {
+        const { from, to } = req.query;
+        let query = `
       SELECT j.created_at as tarih, v.plate as plaka, c.name as musteri, c.phone as telefon,
              v.brand as marka, v.model, j.total_amount as tutar, j.payment_method as odeme,
              j.status as durum, j.notes
@@ -604,35 +938,78 @@ app.get("/api/export/jobs", requireAuth, async (req, res) => {
       JOIN vehicles v ON j.vehicle_id = v.id
       JOIN customers c ON j.customer_id = c.id
     `;
-    const params = [];
-    const conditions = [];
-    if (from) { params.push(from); conditions.push(`j.created_at::date >= $${params.length}`); }
-    if (to) { params.push(to); conditions.push(`j.created_at::date <= $${params.length}`); }
-    if (conditions.length > 0) query += " WHERE " + conditions.join(" AND ");
-    query += " ORDER BY j.created_at DESC";
+        const params = [];
+        const conditions = [];
+        if (from) {
+            params.push(from);
+            conditions.push(`j.created_at::date >= $${params.length}`);
+        }
+        if (to) {
+            params.push(to);
+            conditions.push(`j.created_at::date <= $${params.length}`);
+        }
+        if (conditions.length > 0)
+            query += " WHERE " + conditions.join(" AND ");
+        query += " ORDER BY j.created_at DESC";
 
-    const result = await pool.query(query, params);
+        const result = await pool.query(query, params);
 
-    // Build CSV
-    const headers = ["Tarih", "Plaka", "Müşteri", "Telefon", "Marka", "Model", "Tutar", "Ödeme", "Durum", "Notlar"];
-    const paymentMap = { cash: "Nakit", card: "Kredi Kartı", transfer: "Havale", mixed: "Karışık" };
-    const statusMap = { waiting: "Bekliyor", in_progress: "İşlemde", completed: "Hazır", delivered: "Teslim Edildi", cancelled: "İptal" };
+        // Build CSV
+        const headers = [
+            "Tarih",
+            "Plaka",
+            "Müşteri",
+            "Telefon",
+            "Marka",
+            "Model",
+            "Tutar",
+            "Ödeme",
+            "Durum",
+            "Notlar",
+        ];
+        const paymentMap = {
+            cash: "Nakit",
+            card: "Kredi Kartı",
+            transfer: "Havale",
+            mixed: "Karışık",
+        };
+        const statusMap = {
+            waiting: "Bekliyor",
+            in_progress: "İşlemde",
+            completed: "Hazır",
+            delivered: "Teslim Edildi",
+            cancelled: "İptal",
+        };
 
-    let csv = "\uFEFF" + headers.join(";") + "\n"; // BOM for Turkish chars in Excel
-    for (const r of result.rows) {
-      const date = new Date(r.tarih).toLocaleDateString("tr-TR");
-      csv += [
-        date, r.plaka, r.musteri, r.telefon, r.marka || "", r.model || "",
-        r.tutar, paymentMap[r.odeme] || r.odeme, statusMap[r.durum] || r.durum, r.notes || ""
-      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(";") + "\n";
+        let csv = "\uFEFF" + headers.join(";") + "\n"; // BOM for Turkish chars in Excel
+        for (const r of result.rows) {
+            const date = new Date(r.tarih).toLocaleDateString("tr-TR");
+            csv +=
+                [
+                    date,
+                    r.plaka,
+                    r.musteri,
+                    r.telefon,
+                    r.marka || "",
+                    r.model || "",
+                    r.tutar,
+                    paymentMap[r.odeme] || r.odeme,
+                    statusMap[r.durum] || r.durum,
+                    r.notes || "",
+                ]
+                    .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+                    .join(";") + "\n";
+        }
+
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader(
+            "Content-Disposition",
+            `attachment; filename=openprocess_rapor_${new Date().toISOString().split("T")[0]}.csv`,
+        );
+        res.send(csv);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename=openprocess_rapor_${new Date().toISOString().split("T")[0]}.csv`);
-    res.send(csv);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 // ═══════════════════════════════
@@ -640,20 +1017,28 @@ app.get("/api/export/jobs", requireAuth, async (req, res) => {
 // ═══════════════════════════════
 
 app.get("/", (req, res) => {
-  if (!req.session.user) return res.redirect("/login");
-  res.redirect("/dashboard");
+    if (!req.session.user) return res.redirect("/login");
+    res.redirect("/dashboard");
 });
 
-const pages = ["login", "dashboard", "jobs", "appointments", "customers", "reports", "settings"];
+const pages = [
+    "login",
+    "dashboard",
+    "jobs",
+    "appointments",
+    "customers",
+    "reports",
+    "settings",
+];
 pages.forEach((page) => {
-  app.get(`/${page}`, (req, res) => {
-    res.sendFile(path.join(__dirname, "views", `${page}.html`));
-  });
+    app.get(`/${page}`, (req, res) => {
+        res.sendFile(path.join(__dirname, "views", `${page}.html`));
+    });
 });
 
 // Customer detail page
 app.get("/customers/:id", (req, res) => {
-  res.sendFile(path.join(__dirname, "views", "customer-detail.html"));
+    res.sendFile(path.join(__dirname, "views", "customer-detail.html"));
 });
 
 // ═══════════════════════════════
@@ -661,5 +1046,5 @@ app.get("/customers/:id", (req, res) => {
 // ═══════════════════════════════
 
 app.listen(PORT, () => {
-  console.log(`\n🚗 OpenProcess çalışıyor: http://localhost:${PORT}\n`);
+    console.log(`\n🚗 OpenProcess çalışıyor: http://localhost:${PORT}\n`);
 });
